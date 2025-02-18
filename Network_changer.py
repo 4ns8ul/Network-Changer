@@ -1,36 +1,34 @@
-import optparse
-import scapy.all as scapy
+import argparse
+from scapy.layers.l2 import ARP, Ether
+from scapy.sendrecv import srp
 
 def parsed():
-    parser = optparse.OptionParser()
-    parser.add_option("-t", "--target", dest="ip_addr", help="Use -t or --target to add IP Address")
-    (option, args) = parser.parse_args()
-    print (f"Debug: option.ip_addr = {option.ip_addr}")
-    return option
+    parser = argparse.ArgumentParser(description="ARP Scanner")
+    parser.add_argument("-t", "--target", dest="ip_addr", required=True, help="Specify IP range to scan")
+    args = parser.parse_args()
+    return args
 
-def scan (ip_addr) :
+def scan(ip_addr):
     print(f"Scanning IP Address {ip_addr}")
-    arp_request = scapy.ARP(pdst=ip_addr)
-    broadcast = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
-    arp_request_broadcast = broadcast/arp_request
+    
+    arp_request = ARP(pdst=ip_addr)
+    broadcast = Ether(dst="ff:ff:ff:ff:ff:ff")
+    arp_request_broadcast = broadcast / arp_request
 
-    answered_list = scapy.srp(arp_request_broadcast, timeout=1, verbose=False)[0]
+    answered_list = srp(arp_request_broadcast, timeout=1, verbose=False)[0]
 
     client_list = []
-
     for elem in answered_list:
-        client_dict = {"ip":elem[0].pdst, "MAC":elem[1].hwdst}
+        client_dict = {"ip": elem[1].psrc, "MAC": elem[1].hwsrc}
         client_list.append(client_dict)
 
-    def printList():
-        print("_______________________\nIP ADDRESS\t\tMAC ADDRESS\n_______________________")
-        for i in range(len(client_list)):
-                print(client_list[0]["ip"] + "\t\t" + client_list[1]["MAC"])
+    if not client_list:
+        print("No devices found.")
+        return
 
-    printList ()
+    print("_______________________\nIP ADDRESS\t\tMAC ADDRESS\n_______________________")
+    for client in client_list:
+        print(client["ip"] + "\t\t" + client["MAC"])
 
 options = parsed()
-if options.ip_addr:
-    scan(options.ip_addr)
-else:
-    print("[-] Invalid Usage. Please use --help")
+scan(options.ip_addr)
